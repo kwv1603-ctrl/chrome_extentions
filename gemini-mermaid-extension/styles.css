@@ -1,0 +1,191 @@
+/* Gemini Mermaid Renderer Styles */
+
+/* 渲染后的 Mermaid 图表容器 */
+.mermaid-rendered-container {
+  position: relative;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 12px 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  overflow: auto;
+  max-width: 100%;
+  min-width: 600px;
+  /* 确保有足够的宽度供 Mermaid 计算 */
+}
+
+/* 图表 SVG 样式 */
+.mermaid-rendered-container svg {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* 工具栏 */
+.mermaid-toolbar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+}
+
+/* 工具栏按钮 */
+.mermaid-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #475569;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.mermaid-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.2);
+  color: #1e293b;
+  transform: translateY(-1px);
+}
+
+.mermaid-btn:active {
+  transform: translateY(0);
+}
+
+.mermaid-btn.active {
+  background: #3b82f6;
+  color: white;
+  border-color: transparent;
+}
+
+/* 原始代码视图 */
+.mermaid-code-view {
+  display: none;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 12px;
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+}
+
+.mermaid-code-view.visible {
+  display: block;
+}
+
+.mermaid-code-view pre {
+  margin: 0;
+  font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #334155;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 加载动画 */
+.mermaid-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #64748b;
+}
+
+.mermaid-loading::before {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border: 2px solid #cbd5e1;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: mermaid-spin 0.8s linear infinite;
+  margin-right: 12px;
+}
+
+@keyframes mermaid-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 错误提示 */
+.mermaid-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 16px;
+  color: #ef4444;
+  font-size: 13px;
+}
+
+.mermaid-error-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+/* 全屏模式 */
+.mermaid-fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  z-index: 999999 !important;
+  overflow: auto !important;
+}
+
+/* 复制成功提示 */
+.mermaid-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #3b82f6;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  z-index: 1000000;
+  animation: mermaid-toast-in 0.3s ease;
+}
+
+@keyframes mermaid-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* 禁用状态的代码块高亮 */
+.mermaid-detected {
+  position: relative;
+}
+
+.mermaid-detected::before {
+  content: '🎨 Mermaid';
+  position: absolute;
+  top: -24px;
+  left: 0;
+  background: #3b82f6;
+  color: white;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px 4px 0 0;
+}
