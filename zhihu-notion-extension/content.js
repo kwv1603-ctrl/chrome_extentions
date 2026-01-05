@@ -27,7 +27,7 @@ function injectButtons() {
         // UI FIX: Better styling to match Zhihu's clean look
         btn.className = 'Button ContentItem-action notion-save-btn';
         btn.style.cssText = `
-            margin-left: 24px; /* INCREASED MARGIN to avoid overlap */
+            margin-left: auto; /* Pushes button to its far right in flex container */
             color: #172B4D; 
             border: 1px solid #E1E1E1;
             background: white;
