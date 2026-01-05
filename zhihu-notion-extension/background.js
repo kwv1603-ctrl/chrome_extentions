@@ -60,10 +60,10 @@ async function handleSaveToNotion(data, sendResponse) {
             throw new Error('Please configure Notion Token and Target in extension settings.');
         }
 
-        // Construct Body based on Target Type
-        let body = {};
+        // Notion API has a limit of 100 children per request
+        const MAX_BLOCKS = 100;
 
-        const childrenBlocks = [
+        const childrenBlocksFull = [
             {
                 object: 'block',
                 type: 'heading_2',
@@ -82,7 +82,7 @@ async function handleSaveToNotion(data, sendResponse) {
                 object: 'block',
                 type: 'paragraph',
                 paragraph: {
-                    rich_text: [{ text: { content: `Source: ${data.url}`, link: { url: data.url } } }] // Make source clickable
+                    rich_text: [{ text: { content: `Source: ${data.url}`, link: { url: data.url } } }]
                 }
             },
             {
@@ -90,36 +90,30 @@ async function handleSaveToNotion(data, sendResponse) {
                 type: 'divider',
                 divider: {}
             },
-            ...createParagraphBlocks(data.content)
+            ...createParagraphBlocks((data.structure && data.structure.length > 0) ? data.structure : data.content)
         ];
 
+        const initialBlocks = childrenBlocksFull.slice(0, MAX_BLOCKS);
+        const remainingBlocks = childrenBlocksFull.slice(MAX_BLOCKS);
+
+        // Construct Body based on Target Type
+        let body = {};
+
         if (targetType === 'page') {
-            // Saving as a Sub-Page
             body = {
                 parent: { page_id: targetId },
-                properties: {
-                    title: [
-                        { text: { content: data.title } }
-                    ]
-                },
-                children: childrenBlocks
+                properties: { title: [{ text: { content: data.title } }] },
+                children: initialBlocks
             };
         } else {
-            // Saving to a Database
             body = {
                 parent: { database_id: targetId },
                 properties: {
-                    "Name": {
-                        title: [{ text: { content: data.title } }]
-                    },
-                    "URL": {
-                        url: data.url
-                    },
-                    "Author": {
-                        rich_text: [{ text: { content: data.author } }]
-                    }
+                    "Name": { title: [{ text: { content: data.title } }] },
+                    "URL": { url: data.url },
+                    "Author": { rich_text: [{ text: { content: data.author } }] }
                 },
-                children: childrenBlocks
+                children: initialBlocks
             };
         }
 
@@ -142,10 +136,8 @@ async function handleSaveToNotion(data, sendResponse) {
                 // Fallback: Try sending ONLY title if URL/Author properties don't exist in user's DB
                 const fallbackBody = {
                     parent: { database_id: targetId },
-                    properties: {
-                        "Name": { title: [{ text: { content: data.title } }] } // "Name" is the default title prop usually
-                    },
-                    children: childrenBlocks
+                    properties: { "Name": { title: [{ text: { content: data.title } }] } }, // "Name" is the default title prop usually
+                    children: initialBlocks
                 };
                 const fallbackResponse = await fetch('https://api.notion.com/v1/pages', {
                     method: 'POST',
@@ -154,12 +146,17 @@ async function handleSaveToNotion(data, sendResponse) {
                 });
                 const fallbackJson = await fallbackResponse.json();
                 if (fallbackResponse.ok) {
-                    // Return the URL of the fallback creation
+                    await appendRemainingBlocks(fallbackJson.id, remainingBlocks, token);
                     sendResponse({ success: true, data: fallbackJson, url: fallbackJson.url });
                     return;
                 }
             }
             throw new Error(resJson.message || response.statusText);
+        }
+
+        // Successfully created page, now append remaining blocks if any
+        if (remainingBlocks.length > 0) {
+            await appendRemainingBlocks(resJson.id, remainingBlocks, token);
         }
 
         sendResponse({ success: true, data: resJson, url: resJson.url });
@@ -170,22 +167,82 @@ async function handleSaveToNotion(data, sendResponse) {
     }
 }
 
-function createParagraphBlocks(text) {
-    if (!text) return [];
-
-    const maxLength = 2000;
-    const blocks = [];
-
-    for (let i = 0; i < text.length; i += maxLength) {
-        const chunk = text.substring(i, i + maxLength);
-        blocks.push({
-            object: 'block',
-            type: 'paragraph',
-            paragraph: {
-                rich_text: [{ text: { content: chunk } }]
-            }
+async function appendRemainingBlocks(blockId, blocks, token) {
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < blocks.length; i += CHUNK_SIZE) {
+        const chunk = blocks.slice(i, i + CHUNK_SIZE);
+        const response = await fetch(`https://api.notion.com/v1/blocks/${blockId}/children`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Notion-Version': '2022-06-28',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ children: chunk })
         });
+        if (!response.ok) {
+            const err = await response.json();
+            console.error('Error appending blocks:', err);
+            // We don't throw here to avoid failing the whole save, but we log it.
+        }
+    }
+}
+
+function createParagraphBlocks(data) {
+    // Handle both legacy (string) and new structured (array) content
+    if (!data) return [];
+
+    // If string, use legacy splitter
+    if (typeof data === 'string') {
+        const text = data;
+        const maxLength = 2000;
+        const blocks = [];
+        for (let i = 0; i < text.length; i += maxLength) {
+            const chunk = text.substring(i, i + maxLength);
+            blocks.push({
+                object: 'block',
+                type: 'paragraph',
+                paragraph: {
+                    rich_text: [{ text: { content: chunk } }]
+                }
+            });
+        }
+        return blocks;
     }
 
-    return blocks;
+    // New Structured Content (Array of {type, content/url})
+    if (Array.isArray(data)) {
+        const blocks = [];
+        data.forEach(item => {
+            if (item.type === 'image') {
+                blocks.push({
+                    object: 'block',
+                    type: 'image',
+                    image: {
+                        type: 'external',
+                        external: {
+                            url: item.url
+                        }
+                    }
+                });
+            } else if (item.type === 'text') {
+                // Split text if too long (Notion limit 2000)
+                const text = item.content;
+                const maxLength = 2000;
+                for (let i = 0; i < text.length; i += maxLength) {
+                    const chunk = text.substring(i, i + maxLength);
+                    blocks.push({
+                        object: 'block',
+                        type: 'paragraph',
+                        paragraph: {
+                            rich_text: [{ text: { content: chunk } }]
+                        }
+                    });
+                }
+            }
+        });
+        return blocks;
+    }
+
+    return [];
 }

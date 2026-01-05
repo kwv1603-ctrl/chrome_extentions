@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Zhihu Feed Filter",
+  "version": "1.0",
+  "description": "Filter Zhihu feed items by keywords",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.zhihu.com/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "assets/icon16.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.zhihu.com/*"
+      ],
+      "js": [
+        "content_scripts/filter.js"
+      ],
+      "run_at": "document_end"
+    }
+  ]
+}
