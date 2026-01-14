@@ -15,25 +15,25 @@
             margin: 0;
             padding: 0;
             min-height: 100vh;
-            overflow: hidden;
+            overflow: auto; /* 允许滚动 */
         }
 
         #main-wrapper {
             display: block;
             min-height: 100vh;
             padding: 20px;
-            width: 100%;
             box-sizing: border-box;
+            /* 不限制宽度 */
         }
 
         #mermaid-container {
             background: transparent;
-            width: 100%;
             text-align: center;
+            /* 不限制宽度，让图表自然显示 */
         }
 
         #mermaid-container svg {
-            max-width: 100%;
+            /* 不限制宽度，让图表自适应 */
             height: auto;
         }
 

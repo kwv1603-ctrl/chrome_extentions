@@ -52,9 +52,10 @@
 
   // 创建渲染容器
   function createRenderContainer(originalCode, renderId) {
-    const container = document.createElement('div');
-    container.className = 'mermaid-rendered-container';
-    container.dataset.renderId = renderId;
+    // 外层包装器 (用于定位工具栏)
+    const wrapper = document.createElement('div');
+    wrapper.className = 'mermaid-wrapper';
+    wrapper.dataset.renderId = renderId;
 
     // 工具栏
     const toolbar = document.createElement('div');
@@ -75,12 +76,16 @@
     // 导出 SVG 按钮 (只保留 SVG)
     const exportSvgBtn = document.createElement('button');
     exportSvgBtn.className = 'mermaid-btn';
-    exportSvgBtn.textContent = '⬇️ 导出 SVG';
+    exportSvgBtn.textContent = '⬇️ SVG';
     exportSvgBtn.title = '导出为矢量图 (SVG)';
 
     toolbar.appendChild(toggleBtn);
     toolbar.appendChild(fullscreenBtn);
     toolbar.appendChild(exportSvgBtn);
+
+    // 渲染容器 (滚动区域)
+    const container = document.createElement('div');
+    container.className = 'mermaid-rendered-container';
 
     // 图表容器
     const diagramContainer = document.createElement('div');
@@ -93,9 +98,11 @@
     codePre.textContent = originalCode;
     codeView.appendChild(codePre);
 
-    container.appendChild(toolbar);
     container.appendChild(diagramContainer);
     container.appendChild(codeView);
+
+    wrapper.appendChild(toolbar);
+    wrapper.appendChild(container);
 
     // 事件绑定
     toggleBtn.addEventListener('click', () => {
@@ -106,27 +113,48 @@
     });
 
     fullscreenBtn.addEventListener('click', () => {
-      container.classList.toggle('mermaid-fullscreen');
-      fullscreenBtn.textContent = container.classList.contains('mermaid-fullscreen')
-        ? '✕ 退出' : '⛶ 全屏';
+      wrapper.classList.toggle('mermaid-fullscreen');
+      const isFullscreen = wrapper.classList.contains('mermaid-fullscreen');
+
+      fullscreenBtn.textContent = isFullscreen ? '✕ 退出' : '⛶ 全屏';
+
+      if (isFullscreen) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = '';
+      }
+
+      // 通知 iframe 全屏状态
+      const iframe = container.querySelector('iframe');
+      if (iframe) {
+        iframe.contentWindow.postMessage({ type: 'toggle-fullscreen', isFullscreen }, '*');
+      }
     });
 
     exportSvgBtn.addEventListener('click', () => {
-      exportSvgBtn.textContent = '⏳ ...';
+      exportSvgBtn.textContent = '⏳';
       const iframe = container.querySelector('iframe');
       if (iframe) iframe.contentWindow.postMessage({ type: 'export-svg' }, '*');
     });
 
     // ESC 退出全屏
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && container.classList.contains('mermaid-fullscreen')) {
-        container.classList.remove('mermaid-fullscreen');
+      if (e.key === 'Escape' && wrapper.classList.contains('mermaid-fullscreen')) {
+        wrapper.classList.remove('mermaid-fullscreen');
         fullscreenBtn.textContent = '⛶ 全屏';
+        document.body.style.overflow = '';
+
+        // 通知 iframe 退出全屏
+        const iframe = container.querySelector('iframe');
+        if (iframe) {
+          iframe.contentWindow.postMessage({ type: 'toggle-fullscreen', isFullscreen: false }, '*');
+        }
       }
     });
 
-    return { container, diagramContainer };
+    return { container: wrapper, diagramContainer };
   }
+
 
   // 显示提示
   function showToast(message) {
@@ -172,8 +200,8 @@
         downloadImage(event.data.data, event.data.format);
 
         // 恢复按钮状态
-        const btn = container.querySelector('button[title="导出为矢量图 (SVG)"]');
-        if (btn) btn.textContent = '⬇️ 导出 SVG';
+        const btn = container.parentElement.querySelector('button[title="导出为矢量图 (SVG)"]');
+        if (btn) btn.textContent = '⬇️ SVG';
 
         showToast(`已导出 ${event.data.format.toUpperCase()}`);
       }
